@@ -42,6 +42,7 @@ export class AppStore {
 
     updateCourseCategory(newCat: string) {
         this.courseCategory = newCat;
+        console.log(`Course category updated to: ${newCat}`);
     }
 
     updateCourseLevel(newLevel: string) {

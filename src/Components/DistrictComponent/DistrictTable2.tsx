@@ -18,9 +18,11 @@ const DistrictTable: FC<{ categoryColor: string }> = observer(({ categoryColor }
     const selectedIDs = [...store.selectedDistricts];
 
     const districts = useMemo(() => {
+        
         const popRows = leaPopData[year] || [];
         const schPopRows = schoolPopData[year] || [];
         const csRows = schoolCSData[year] || [];
+
 
         return popRows
             .filter((row: any) => String(row[1] || '').toLowerCase().includes('district'))

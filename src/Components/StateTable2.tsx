@@ -193,7 +193,7 @@ const StateTable: FC<StateTableProps> = ({ categoryColor }) => {
                     <TableRow>
                         <StateTableCell component="th" scope="row">
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                Total 9-12 Student Population ADDED BOTH RACE BREAKDOWN TRY 3
+                                Total 9-12 Student Population
                             </Typography>
                         </StateTableCell>
                         <StateTableCell>

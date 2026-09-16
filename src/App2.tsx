@@ -13,6 +13,7 @@ import TabsComponent from "./Components/TabsComponent/Tabs2";
 import OverviewTab from "./Components/OverviewTab2";
 import SchoolTable from "./Components/SchoolComponent/SchoolTable2";
 import DistrictTable from "./Components/DistrictComponent/DistrictTable2";
+import DistrictClassTable from "./Components/DistrictComponent/DistrictClassTable";
 import Footer from "./Components/Footer";
 
 export const SectionTitle = styled(Typography)({
@@ -286,8 +287,8 @@ export const App = () => {
             .then((rows: any[]) => {
                 const dataByYear = initStore();
                 rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
+                    const year = String(row[1]);
+                    if (year === 'Year') return;
                     if (dataByYear[year]) dataByYear[year].push(row);
                 });
                 setTotalLeaCSData(dataByYear);
@@ -424,7 +425,38 @@ export const App = () => {
                                 </Grid>
                             </Grid>
                         )}
-                        {tabVal === 2 && <Box sx={placeholderStyle}>Trends Placeholder</Box>}
+                        {tabVal === 2 && (
+                            <Grid container spacing={2} sx={{ p: 2 }}>
+                                <Grid xs={12} md={6}>
+                                    <div style={{
+                                        fontSize: '1.3rem',
+                                        fontWeight: 'bold',
+                                        color: categoryColor,
+                                        marginBottom: '10px',
+                                        paddingLeft: '10px'
+                                    }}>
+                                        District Courses
+                                    </div>
+                                    <DistrictClassTable categoryColor={categoryColor} />
+                                </Grid>
+
+                                <Grid xs={12} md={6}>
+                                    <div style={{
+                                        fontSize: '1.3rem',
+                                        fontWeight: 'bold',
+                                        color: categoryColor,
+                                        marginBottom: '10px',
+                                        paddingLeft: '10px'
+                                    }}>
+                                        {store.hoveredDistrict
+                                            ? `Schools in ${store.hoveredDistrict}`
+                                            : "Schools in Selected District"}
+                                    </div>
+                                    <SchoolTable categoryColor={categoryColor} />
+                                </Grid>
+                            </Grid>
+                        )}
+                        {tabVal === 3 && <Box sx={placeholderStyle}>Trends Placeholder</Box>}
                     </Box>
                 </Box>
                 <Footer />

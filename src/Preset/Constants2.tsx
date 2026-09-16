@@ -1,4 +1,4 @@
-export const linkToData = '/Utah-CS/data/2026_02_20.xlsx';
+export const linkToData = '/Utah-CS/data/2026_02_20_Cleaned_v2.xlsx';
 export const linkToGeoJson = '/Utah-CS/data/Utah_School_District_Boundaries.geojson';
 
 export const PossibleSchoolYears = [

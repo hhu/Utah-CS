@@ -135,13 +135,14 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
     const uniqueCourseCount = useMemo(() => {
         if (!courseData?.byCode) return 0;
         const all = Object.values(courseData.byCode);
+        const matchesLevel = (c: any) => store.courseLevel === 'All' || c[3] === store.courseLevel;
 
-        if (store.courseCategory === 'CS Total') return all.length;
+        if (store.courseCategory === 'CS Total') return all.filter(matchesLevel).length;
         if (store.courseCategory === 'CS Foundational') {
-            return all.filter((c: any) => c[1] === 'CS').length;
+            return all.filter((c: any) => c[1] === 'CS' && matchesLevel(c)).length;
         }
-        return all.filter((c: any) => c[2] === store.courseCategory).length;
-    }, [courseData, store.courseCategory]);
+        return all.filter((c: any) => c[2] === store.courseCategory && matchesLevel(c)).length;
+    }, [courseData, store.courseCategory, store.courseLevel]);
 
     // Per-district totals and CS percentage for the map, same join logic as DistrictTable2.
     const districtStats = useMemo(() => {
@@ -369,21 +370,21 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>{CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` ${store.courseLevel}` : ''} Courses</span>}
+                                mainText={<span>{CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}</span>}
                                 subText={<span style={{ color: categoryColor }}>{uniqueCourseCount}</span>}
                             />
                         </OverviewGridItem>
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>Schools <b>Offering</b> {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` ${store.courseLevel}` : ''} Courses</span>}
+                                mainText={<span>Schools <b>Offering</b> {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}</span>}
                                 subText={<span style={{ color: categoryColor }}>{schoolsOfferingCount}</span>}
                             />
                         </OverviewGridItem>
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>Students <b>Participating</b> in {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` ${store.courseLevel}` : ''} Courses</span>}
+                                mainText={<span>Students <b>Participating</b> in {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}</span>}
                                 subText={
                                     <span style={{ color: categoryColor, fontSize: store.showPercentage ? '3.2rem' : '2.8rem' }}>
                                         {store.showPercentage
@@ -399,7 +400,7 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
                 <Grid xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
                     <div style={{ padding: '10px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <div style={{ textAlign: 'center', color: categoryColor, fontWeight: 'bold', marginBottom: '15px', fontSize: '1.15rem' }}>
-                            Percentage of Students in {store.getCourseCategoryAndLevelString()} by District for {year}
+                            Percentage of Students in {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} Only)` : ''} by District for {year}
                         </div>
                         <div style={{
                             flex: 1,

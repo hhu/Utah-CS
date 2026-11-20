@@ -200,12 +200,12 @@ export const App = () => {
             }
 
             // 2. Parse the sheets one at a time from that single download.
-            for (const [sheetName, useRows] of sheets) {
+            for (const [sheetName, handleRows] of sheets) {
                 if (cancelled) return;
                 try {
                     const rows = await readXlsxFile(fileContents, { sheet: sheetName });
                     if (cancelled) return;
-                    useRows(rows);
+                    handleRows(rows);
                 } catch (err) {
                     console.error(`Error loading sheet "${sheetName}":`, err);
                     if (!cancelled) setFailedSheets(prev => [...prev, sheetName]);

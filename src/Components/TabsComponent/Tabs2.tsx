@@ -10,7 +10,7 @@ interface TabsComponentProps {
 
 const TabsComponent: FC<TabsComponentProps> = ({ tabVal, tabChange, categoryColor }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const labels = ["OVERVIEW", "ENROLLMENT", "COURSES", "STATEWIDE TRENDS"];
+    const labels = ["OVERVIEW", "ENROLLMENT", "COURSES", "COURSE CATALOG"];
 
     return (
         <Box sx={{ width: '100%', borderBottom: 1, borderColor: 'divider' }}>

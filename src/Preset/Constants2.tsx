@@ -24,6 +24,12 @@
 // 6. A handful of LEA/school names differ between our workbook and USBE's
 //    grade-level enrollment file in ways a case-insensitive match alone can't
 //    bridge - see gradeLevelNameAliases below.
+// 7. "Course List"'s CE (concurrent enrollment) rows are named "<base course
+//    name> CE", except one has a typo - "Computer Programmig Advanced CE" is
+//    missing the second "n" and so doesn't match "Computer Programming
+//    Advanced" by simple suffix-stripping. See courseCeNameAliases below.
+//    CourseCatalogTab2.tsx logs a console.error for any CE row that still
+//    doesn't resolve to a base course, so a future typo won't fail silently.
 export const linkToData = '/Utah-CS/data/2026_02_20_Cleaned_v2.xlsx';
 export const linkToGeoJson = '/Utah-CS/data/Utah_School_District_Boundaries.geojson';
 
@@ -46,6 +52,21 @@ const gradeLevelNameAliases: Record<string, string> = {
 export const normalizeGradeLevelName = (name: string): string => {
     const key = String(name || '').trim().toLowerCase();
     return gradeLevelNameAliases[key] ?? key;
+};
+
+// A CE course name (lowercased, "CE" suffix already stripped) -> the base
+// course name it belongs to, for the one CE name that doesn't match its base
+// course by simple suffix-stripping (see quirk 7 above).
+const courseCeNameAliases: Record<string, string> = {
+    'computer programmig advanced': 'computer programming advanced',
+};
+
+// Strips a trailing " CE" from a concurrent-enrollment course name and returns
+// the base course name (lowercased) it should match, correcting for the one
+// known typo above.
+export const resolveBaseCourseName = (ceName: string): string => {
+    const stripped = String(ceName || '').trim().replace(/\s+CE$/i, '').trim().toLowerCase();
+    return courseCeNameAliases[stripped] ?? stripped;
 };
 
 export const PossibleSchoolYears = [

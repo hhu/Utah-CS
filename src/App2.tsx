@@ -16,6 +16,7 @@ import SchoolClassTable from "./Components/SchoolComponent/SchoolClassTable";
 import DistrictTable from "./Components/DistrictComponent/DistrictTable2";
 import DistrictClassTable from "./Components/DistrictComponent/DistrictClassTable";
 import Footer from "./Components/Footer";
+import CourseCatalogTab from "./Components/CourseCatalogComponent/CourseCatalogTab2";
 
 export const SectionTitle = styled(Typography)({
     color: '#2f1600',
@@ -24,19 +25,6 @@ export const SectionTitle = styled(Typography)({
     marginTop: '20px',
     marginBottom: '20px',
 });
-
-const placeholderStyle = {
-    p: 4,
-    bgcolor: '#f5f3f3',
-    borderRadius: '8px',
-    textAlign: 'center',
-    border: '1px dashed #ccc',
-    minHeight: '200px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'text.secondary'
-};
 
 type CourseDetails = [string, string, string, string]; // [Name, Type, Category, Level]
 
@@ -446,7 +434,7 @@ export const App = () => {
                                 </Grid>
                             </Grid>
                         )}
-                        {tabVal === 3 && <Box sx={placeholderStyle}>Trends Placeholder</Box>}
+                        {tabVal === 3 && <CourseCatalogTab categoryColor={categoryColor} />}
                     </Box>
                 </Box>
                 <Footer />

@@ -2,7 +2,7 @@ export const linkToData = '/Utah-CS/data/2026_02_20_Cleaned_v2.xlsx';
 export const linkToGeoJson = '/Utah-CS/data/Utah_School_District_Boundaries.geojson';
 
 export const PossibleSchoolYears = [
-    '2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25'
+    '2024-25'
 ];
 
 export const PossibleCategories = [

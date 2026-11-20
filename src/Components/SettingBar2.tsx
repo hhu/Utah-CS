@@ -3,7 +3,7 @@ import { observer } from "mobx-react-lite";
 import Store from "../Interface/Store2";
 import { Grid, FormControl, Select, MenuItem, SelectChangeEvent, InputLabel, Divider, FormHelperText, Box } from "@mui/material";
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { PossibleSchoolYears } from "../Preset/Constants2";
+import { PossibleSchoolYears, CourseCategoryDictionary } from "../Preset/Constants2";
 import { DataContext } from "../App2";
 
 const SettingBar: FC = () => {
@@ -37,8 +37,8 @@ const SettingBar: FC = () => {
     }, [fromSheet]);
 
     const getCategoryDefinition = (cat: string) => {
-        if (cat === "CS Total") return "All course categories, including CS-Related.";
-        if (cat === "CS Foundational") return "All course categories, excluding CS-Related.";
+        if (cat === "CS Total") return `All course categories, including ${CourseCategoryDictionary['CS-Related']}.`;
+        if (cat === "CS Foundational") return `All course categories, excluding ${CourseCategoryDictionary['CS-Related']}.`;
         return null;
     };
 
@@ -72,7 +72,7 @@ const SettingBar: FC = () => {
                                 
                                 <MenuItem key={`${cat}-mi`} value={cat}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        {cat}
+                                        {CourseCategoryDictionary[cat] ?? cat}
                                         {isManual && <InfoOutlinedIcon sx={{ fontSize: '1rem', color: '#94a3b8' }} />}
                                     </Box>
                                 </MenuItem>

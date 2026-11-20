@@ -85,6 +85,40 @@ export const PossibleCategories = [
 
 ];
 
+// Display names for the main Course Category filter. Keyed by the INTERNAL
+// name (what store.courseCategory holds, and what 'Core CS' / 'CS-Related' are
+// called in the Excel data itself) -> what we show on screen. Changing a value
+// here only changes the label; never change a key, since filtering logic
+// throughout the app still compares against these exact internal strings.
+export const CourseCategoryDictionary: { [key: string]: string; } = {
+    'CS Total': 'Total Computing Courses',
+    'CS Foundational': 'All Computer Science',
+    'CS-Related': 'Related Computing',
+    'Core CS': 'Core Computer Science',
+};
+
+// Shorthand category names for table headers and other tight spaces. Not every
+// category needs a shorter name; only listed ones are shortened, others fall
+// back to their regular internal name.
+export const CourseCategoryShortDictionary: { [key: string]: string; } = {
+    'CS Total': 'Total Computing',
+    'CS Foundational': 'All CS',
+    'CS-Related': 'Related Computing',
+    'Core CS': 'Core CS',
+    'Web/Software Development': 'Web/Software Dev',
+};
+
+// Overview tab description for each category, keyed by the same internal name.
+export const CourseCategoryDescriptionDictionary: { [key: string]: string; } = {
+    'CS Total': 'Includes All Computer Science and Related Computing courses.',
+    'CS Foundational': 'Courses where students write code or study how computing works. These include Core Computer Science, Web/Software Development, Cybersecurity, and Databases courses.',
+    'Core CS': 'General CS courses, such as Exploring Computer Science and CS Principles.',
+    'Web/Software Development': 'Programming courses for building websites, apps and software.',
+    'Cybersecurity': 'Technical courses on protecting computers and networks.',
+    'Databases': 'Courses on database design and SQL.',
+    'CS-Related': "Technology courses where programming isn't the main focus.",
+};
+
 export const ColorPalette = [
     '#253D81', // Dark Blue
     '#EE2A26', // Red

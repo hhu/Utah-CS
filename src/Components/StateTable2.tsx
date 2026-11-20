@@ -2,6 +2,7 @@ import { TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Typog
 import { FC, useContext, useEffect, useState } from "react";
 import Store from "../Interface/Store2";
 import { DataContext } from "../App2";
+import { CourseCategoryDictionary } from "../Preset/Constants2";
 import { observer } from "mobx-react-lite";
 import styled from "@emotion/styled";
 import { format } from "d3-format";
@@ -260,7 +261,7 @@ const StateTable: FC<StateTableProps> = ({ categoryColor }) => {
                                 borderBottom: `2px solid ${categoryColor}`,
                                 display: 'inline-block'
                             }}>
-                                {store.courseCategory === 'All' ? 'CS Total' : store.courseCategory}
+                                {store.courseCategory === 'All' ? CourseCategoryDictionary['CS Total'] : (CourseCategoryDictionary[store.courseCategory] ?? store.courseCategory)}
                             </div>
                             <Typography variant="caption" display="block" color="textSecondary" sx={{ mt: 0.5 }}>
                                 ({store.courseLevel === 'All' ? 'All Levels' : store.courseLevel})

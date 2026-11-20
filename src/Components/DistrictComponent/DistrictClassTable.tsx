@@ -4,6 +4,7 @@ import { FC, useContext, useEffect, useMemo, useState } from "react";
 import { DataContext } from "../../App2";
 import Store from "../../Interface/Store2";
 import { FunctionCell, SortableHeader, StickyTableContainer, TextCell } from "../CellComponents/TableComponents2";
+import { CourseCategoryShortDictionary } from "../../Preset/Constants2";
 
 type CategoryTotals = { total: number; basic: number; advanced: number };
 
@@ -245,7 +246,7 @@ const DistrictClassTable: FC<{ categoryColor: string }> = observer(({ categoryCo
 							onClick={() => { setSortAttr('courses'); setSortUp(!sortUp); }}
 						/>
 						<SortableHeader
-							headerName={store.courseCategory}
+							headerName={`${CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} Courses`}
 							isSorting={sortAttr === 'enroll'}
 							isSortUp={sortUp}
 							onClick={() => { setSortAttr('enroll'); setSortUp(!sortUp); }}

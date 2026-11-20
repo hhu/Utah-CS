@@ -9,7 +9,7 @@ import { interpolateBlues } from "d3-scale-chromatic";
 import { select, pointer } from "d3-selection";
 import { geoMercator, geoPath } from "d3-geo";
 import { json } from "d3-fetch";
-import { linkToGeoJson, normalizeGradeLevelName } from "../Preset/Constants2";
+import { linkToGeoJson, normalizeGradeLevelName, CourseCategoryDictionary, CourseCategoryDescriptionDictionary } from "../Preset/Constants2";
 
 const OverviewGridItem = styled(Grid)({
     padding: '10px',
@@ -112,6 +112,8 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
                 include = true;
             } else if (store.courseCategory === 'CS Foundational') {
                 include = (rowCat !== 'CS-Related');
+            } else if (store.courseCategory === 'Web/Software Development') {
+                include = (rowCat === 'WebSoftDev');
             } else {
                 include = (rowCat.toLowerCase() === store.courseCategory.toLowerCase());
             }
@@ -336,13 +338,12 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
 
     const renderDescription = (): JSX.Element => {
         const cat = store.courseCategory;
-        let body = `This view displays data specifically for ${cat} courses.`;
-        if (cat === "CS Total") body = "CS Total includes all Foundational and CS-Related courses.";
-        else if (cat === "CS Foundational") body = "CS Foundational courses directly teach fundamental computer science skills, excluding CS-Related courses.";
+        const label = CourseCategoryDictionary[cat] ?? cat;
+        const body = CourseCategoryDescriptionDictionary[cat] ?? `This view displays data specifically for ${label} courses.`;
 
         return (
             <>
-                <div style={{ color: categoryColor, fontWeight: 'bold', fontSize: '1.3rem', marginBottom: '8px' }}>{cat}</div>
+                <div style={{ color: categoryColor, fontWeight: 'bold', fontSize: '1.3rem', marginBottom: '8px' }}>{label}</div>
                 <div style={{ fontSize: '1.05rem' }}>{body}</div>
             </>
         );

@@ -1,5 +1,5 @@
 import { ChangeEvent, createContext, useContext, useEffect, useMemo, useState } from "react";
-import { ColorPalette, linkToData, PossibleSchoolYears } from "./Preset/Constants2";
+import { ColorPalette, linkToData, linkToGradeLevelData, normalizeGradeLevelName, PossibleSchoolYears } from "./Preset/Constants2";
 import readXlsxFile from "read-excel-file";
 import { observer } from 'mobx-react-lite';
 import Store from './Interface/Store2';
@@ -54,6 +54,10 @@ type SchoolCSStore = Record<string, any[]>;
 type TotalSchoolCSStore = Record<string, any[]>;
 type LeaPopStore = Record<string, any[]>;
 type TotalLeaCSStore = Record<string, any[]>;
+// USBE's grade-level enrollment file is one file per year (not a tab per year like
+// the main workbook), so this is just name -> 9-12 enrollment, for whichever single
+// year that file covers today.
+type GradeLevelTotals = Record<string, number>;
 
 interface DataContextType {
     courseData: CourseDataStore | null;
@@ -65,6 +69,8 @@ interface DataContextType {
     totalSchoolCSData: TotalSchoolCSStore;
     leaPopData: LeaPopStore;
     totalLeaCSData: TotalLeaCSStore;
+    gradeLevelDistrictTotals: GradeLevelTotals;
+    gradeLevelSchoolTotals: GradeLevelTotals;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -76,7 +82,9 @@ export const DataContext = createContext<DataContextType>({
     schoolCSData: {},
     totalSchoolCSData: {},
     leaPopData: {},
-    totalLeaCSData: {}
+    totalLeaCSData: {},
+    gradeLevelDistrictTotals: {},
+    gradeLevelSchoolTotals: {}
 });
 
 export const App = () => {
@@ -113,6 +121,8 @@ export const App = () => {
     const [totalStateCSData, setTotalStateCSData] = useState<TotalStateCSStore>(initStore);
     const [leaPopData, setLeaPopData] = useState<LeaPopStore>(initStore());
     const [totalLeaCSData, setTotalLeaCSData] = useState<TotalLeaCSStore>(initStore());
+    const [gradeLevelDistrictTotals, setGradeLevelDistrictTotals] = useState<GradeLevelTotals>({});
+    const [gradeLevelSchoolTotals, setGradeLevelSchoolTotals] = useState<GradeLevelTotals>({});
 
     // Loading progress, shown in the DataLoadingModal popup.
     const [sheetsLoaded, setSheetsLoaded] = useState(0);
@@ -184,6 +194,25 @@ export const App = () => {
             ['Total LEA CS Data', rows => setTotalLeaCSData(groupByYear(rows, 1, 'Year'))],
         ];
 
+        // Sums the four 9-12 grade columns starting at grade9Index, keyed by the
+        // district/school name at nameIndex - a true 9-12-only enrollment count,
+        // unlike "School Pop. Data"'s Total column (whatever grades that school serves).
+        const buildGradeLevelTotals = (rows: any[], nameIndex: number, grade9Index: number): GradeLevelTotals => {
+            const totals: GradeLevelTotals = {};
+            rows.forEach((row) => {
+                const name = String(row[nameIndex] || '').trim();
+                if (!name || name === 'LEA Name' || name === 'School Name') return;
+                totals[normalizeGradeLevelName(name)] = [0, 1, 2, 3].reduce((sum, i) => sum + (Number(row[grade9Index + i]) || 0), 0);
+            });
+            return totals;
+        };
+
+        // A separate file from USBE, with its own two sheets.
+        const gradeLevelSheets: [string, (rows: any[]) => void][] = [
+            ['By LEA', rows => setGradeLevelDistrictTotals(buildGradeLevelTotals(rows, 2, 13))],
+            ['By School', rows => setGradeLevelSchoolTotals(buildGradeLevelTotals(rows, 3, 14))],
+        ];
+
         const loadAllSheets = async () => {
             // 1. Download the Excel file once.
             let fileContents: ArrayBuffer;
@@ -218,6 +247,35 @@ export const App = () => {
                 // numbers fill in) after each sheet, like the legacy dashboard.
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
+
+            // 3. Same two steps again, for the separate USBE grade-level enrollment file.
+            let gradeLevelContents: ArrayBuffer;
+            try {
+                const gradeResponse = await fetch(linkToGradeLevelData);
+                if (!gradeResponse.ok) {
+                    throw new Error(`HTTP ${gradeResponse.status} ${gradeResponse.statusText} for ${linkToGradeLevelData}`);
+                }
+                gradeLevelContents = await gradeResponse.arrayBuffer();
+            } catch (err) {
+                console.error('Error downloading the grade-level enrollment file:', err);
+                if (!cancelled) setFailedSheets(prev => [...prev, ...gradeLevelSheets.map(([name]) => name)]);
+                return;
+            }
+
+            for (const [sheetName, handleRows] of gradeLevelSheets) {
+                if (cancelled) return;
+                try {
+                    const rows = await readXlsxFile(gradeLevelContents, { sheet: sheetName });
+                    if (cancelled) return;
+                    handleRows(rows);
+                } catch (err) {
+                    console.error(`Error loading sheet "${sheetName}":`, err);
+                    if (!cancelled) setFailedSheets(prev => [...prev, sheetName]);
+                }
+                if (cancelled) return;
+                setSheetsLoaded(n => n + 1);
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
         };
 
         loadAllSheets();
@@ -228,7 +286,7 @@ export const App = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const totalSheets = 9; // must match the number of entries in `sheets` above
+    const totalSheets = 11; // must match `sheets`.length + `gradeLevelSheets`.length above
 
     const [tabVal, setTabVal] = useState(0);
 
@@ -247,7 +305,9 @@ export const App = () => {
                 stateCSData: stateCSData,
                 totalStateCSData: totalStateCSData,
                 leaPopData: leaPopData,
-                totalLeaCSData: totalLeaCSData
+                totalLeaCSData: totalLeaCSData,
+                gradeLevelDistrictTotals: gradeLevelDistrictTotals,
+                gradeLevelSchoolTotals: gradeLevelSchoolTotals
             }}
         >
             <div className="App" style={{ overflow: 'hidden', minHeight: '100vh', backgroundColor: '#fafafa' }}>

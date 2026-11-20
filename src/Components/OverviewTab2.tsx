@@ -9,7 +9,7 @@ import { interpolateBlues } from "d3-scale-chromatic";
 import { select, pointer } from "d3-selection";
 import { geoMercator, geoPath } from "d3-geo";
 import { json } from "d3-fetch";
-import { linkToGeoJson } from "../Preset/Constants2";
+import { linkToGeoJson, normalizeGradeLevelName } from "../Preset/Constants2";
 
 const OverviewGridItem = styled(Grid)({
     padding: '10px',
@@ -56,7 +56,8 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
         schoolCSData,
         schoolPopData,
         leaPopData,
-        courseData
+        courseData,
+        gradeLevelDistrictTotals
     } = useContext(DataContext);
 
     const mapRef = useRef(null);
@@ -148,20 +149,55 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
         const selectedCat = store.courseCategory;
         const selectedLevel = store.courseLevel;
 
-        const stats = new Map<string, { total: number; csEnrollment: number; pct: number }>();
-
+        // For 2024-25, "LEA Pop. Data" only lists districts with at least one
+        // CS-offering school, and for that year its "Total" column (index 4) holds
+        // the district's unique CS-participant count, not population like every
+        // other year. A district missing from the sheet that year has confirmed
+        // zero CS participation - it's not suppressed, so it isn't included here.
+        const leaRowByName = new Map<string, any>();
         popRows
             .filter((row: any) => String(row[1] || '').toLowerCase().includes('district'))
-            .forEach((row: any) => {
-                const name = String(row[1]).trim();
-                const ncesDistID = String(row[3]).trim();
+            .forEach((row: any) => leaRowByName.set(String(row[1]).trim(), row));
 
-                const total = schPopRows.reduce((acc: number, schRow: any) => {
-                    const schDistNCES = String(schRow[8]).trim();
-                    return schDistNCES === ncesDistID ? acc + (Number(schRow[9]) || 0) : acc;
-                }, 0);
+        // Districts come from "School Pop. Data" instead of "LEA Pop. Data" so a
+        // district with no CS (and so no "LEA Pop. Data" row in 2024-25) still
+        // shows up, correctly, as a real 0% rather than being left off the map.
+        const districtIds = new Map<string, string>();
+        schPopRows
+            .filter((row: any) => String(row[6] || '').toLowerCase().includes('district'))
+            .forEach((row: any) => districtIds.set(String(row[6]).trim(), String(row[8]).trim()));
+        leaRowByName.forEach((row, name) => districtIds.set(name, String(row[3]).trim()));
 
-                const csEnrollment = csRows.reduce((acc: number, csRow: any) => {
+        const stats = new Map<string, { total: number; csEnrollment: number; pct: number; suppressed: boolean }>();
+
+        districtIds.forEach((ncesDistID, name) => {
+            // Prefer USBE's grade-level file for a true 9-12-only count; fall back to
+            // "School Pop. Data" (whatever grades each school serves) if that district
+            // isn't in the grade-level file (wrong year, or a name that didn't match).
+            const gradeLevelTotal = gradeLevelDistrictTotals[normalizeGradeLevelName(name)];
+            const total = gradeLevelTotal !== undefined ? gradeLevelTotal : schPopRows.reduce((acc: number, schRow: any) => {
+                const schDistNCES = String(schRow[8]).trim();
+                return schDistNCES === ncesDistID ? acc + (Number(schRow[9]) || 0) : acc;
+            }, 0);
+
+            let csEnrollment = 0;
+            let suppressed = false;
+
+            if (year === '2024-25' && selectedCat === 'CS Total' && selectedLevel === 'All') {
+                const leaRow = leaRowByName.get(name);
+                if (!leaRow) {
+                    csEnrollment = 0; // no CS courses this year, confirmed
+                } else {
+                    const raw = leaRow[4];
+                    if (raw != null && isNaN(Number(raw))) suppressed = true;
+                    else csEnrollment = Number(raw) || 0;
+                }
+            } else {
+                // No reliable district-level total exists for a single category or a
+                // single level, so fall back to summing "School CS Data" rows - this
+                // can still understate a district if some of its rows are masked.
+                let hasMaskedCell = false;
+                csEnrollment = csRows.reduce((acc: number, csRow: any) => {
                     const rowDistNCES = String(csRow[6]).trim();
                     const rowCat = String(csRow[7] || '').trim();
 
@@ -179,16 +215,26 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
                     if (!matches || rowDistNCES !== ncesDistID) return acc;
 
                     let val = 0;
-                    if (selectedLevel !== 'Advanced') val += Number(csRow[9]) || 0;
-                    if (selectedLevel !== 'Basic') val += Number(csRow[15]) || 0;
+                    if (selectedLevel !== 'Advanced') {
+                        const raw = csRow[9];
+                        if (raw != null && isNaN(Number(raw))) hasMaskedCell = true;
+                        else val += Number(raw) || 0;
+                    }
+                    if (selectedLevel !== 'Basic') {
+                        const raw = csRow[15];
+                        if (raw != null && isNaN(Number(raw))) hasMaskedCell = true;
+                        else val += Number(raw) || 0;
+                    }
                     return acc + val;
                 }, 0);
+                suppressed = csEnrollment === 0 && hasMaskedCell;
+            }
 
-                stats.set(name, { total, csEnrollment, pct: total > 0 ? csEnrollment / total : 0 });
-            });
+            stats.set(name, { total, csEnrollment, pct: total > 0 ? csEnrollment / total : 0, suppressed });
+        });
 
         return stats;
-    }, [leaPopData, schoolPopData, schoolCSData, year, store.courseCategory, store.courseLevel]);
+    }, [leaPopData, schoolPopData, schoolCSData, gradeLevelDistrictTotals, year, store.courseCategory, store.courseLevel]);
 
     useEffect(() => {
         if (!mapRef.current || !tooltipRef.current) return;
@@ -226,15 +272,20 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
                 .attr('d', path as any)
                 .attr('fill', (d: any) => {
                     const stat = districtStats.get(d.properties.NAME);
-                    return interpolateBlues(((stat?.pct ?? 0) / highestDistrictPercent) || 0);
+                    // !stat means this map shape's name didn't join to any district row at
+                    // all (a real data problem, e.g. a GeoJSON/spreadsheet name mismatch) -
+                    // grey it the same as a masked, suppressed count.
+                    if (!stat || stat.suppressed) return '#bbb';
+                    return interpolateBlues((stat.pct / highestDistrictPercent) || 0);
                 })
                 .attr('stroke-width', 1)
                 .attr('stroke', '#222')
                 .on('mouseover', (e, d: any) => {
                     const stat = districtStats.get(d.properties.NAME);
                     const [x, y] = pointer(e, svgNode.parentNode);
+                    const label = !stat || stat.suppressed ? 'n<10' : format(',.0%')(stat.pct);
                     tooltip
-                        .html(`${d.properties.NAME}, ${!stat || stat.total === 0 ? 'n<10' : format(',.0%')(stat.pct)}`)
+                        .html(`${d.properties.NAME}, ${label}`)
                         .style('display', 'block')
                         .style('left', `${x + 10}px`)
                         .style('top', `${y + 10}px`);

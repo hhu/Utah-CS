@@ -4,10 +4,11 @@ import { FC, useContext, useState } from "react";
 import Store from "../../Interface/Store2";
 import { DataContext } from "../../App2";
 import { StickyTableContainer, TextCell, SortableHeader, DataValue } from "../CellComponents/TableComponents2";
+import { normalizeGradeLevelName } from "../../Preset/Constants2";
 
 const SchoolTable: FC<{ categoryColor: string }> = observer(({ categoryColor }) => {
     const store = useContext(Store);
-    const { schoolPopData, schoolCSData } = useContext(DataContext);
+    const { schoolPopData, schoolCSData, gradeLevelSchoolTotals } = useContext(DataContext);
     const year = store.schoolYearShowing;
     const selectedCat = store.courseCategory;
     const selectedLevel = store.courseLevel;
@@ -20,14 +21,22 @@ const SchoolTable: FC<{ categoryColor: string }> = observer(({ categoryColor }) 
     const csRows = schoolCSData[year] || [];
 
     const filteredSchools = selectedIDs.length === 0 ? [] : popRows
-        .filter((row: any) => selectedIDs.includes(String(row[8]).trim())) 
+        // "NULL" as the NCES school number marks a placeholder, not a real school -
+        // e.g. "Out of State School", used to bucket out-of-state-enrolled students
+        // under a district for funding purposes.
+        .filter((row: any) => String(row[3]).trim().toUpperCase() !== 'NULL')
+        .filter((row: any) => selectedIDs.includes(String(row[8]).trim()))
         .map((row: any) => {
-            const name = String(row[1]).trim(); 
-            const ncesID = String(row[3]).trim(); 
-            const totalStudents = Number(row[9]) || 0; 
+            const name = String(row[1]).trim();
+            const ncesID = String(row[3]).trim();
+            // Prefer USBE's grade-level file for a true 9-12-only count; fall back to
+            // "School Pop. Data" (whatever grades this school serves) if the school
+            // isn't in the grade-level file (wrong year, or a name that didn't match).
+            const gradeLevelTotal = gradeLevelSchoolTotals[normalizeGradeLevelName(name)];
+            const totalStudents = gradeLevelTotal !== undefined ? gradeLevelTotal : Number(row[9]) || 0;
 
             const csStats = csRows.reduce((acc: any, csRow: any) => {
-                const rowSchNCES = String(csRow[3]).trim(); 
+                const rowSchNCES = String(csRow[3]).trim();
                 const rowCat = String(csRow[7]).trim();
 
                 let matches = false;
@@ -44,26 +53,34 @@ const SchoolTable: FC<{ categoryColor: string }> = observer(({ categoryColor }) 
                 if (!matches || rowSchNCES !== ncesID) return acc;
 
                 if (selectedLevel !== 'Advanced') {
-                    acc.total += Number(csRow[9]) || 0;
+                    const raw = csRow[9];
+                    if (raw != null && isNaN(Number(raw))) acc.suppressed = true;
+                    else acc.total += Number(raw) || 0;
                     acc.girls += Number(csRow[10]) || 0;
                     acc.boys += Number(csRow[11]) || 0;
                 }
                 if (selectedLevel !== 'Basic') {
-                    acc.total += Number(csRow[15]) || 0;
+                    const raw = csRow[15];
+                    if (raw != null && isNaN(Number(raw))) acc.suppressed = true;
+                    else acc.total += Number(raw) || 0;
                     acc.girls += Number(csRow[16]) || 0;
                     acc.boys += Number(csRow[17]) || 0;
                 }
                 return acc;
-            }, { total: 0, girls: 0, boys: 0 });
+            }, { total: 0, girls: 0, boys: 0, suppressed: false });
+            // Suppressed only matters when it's the reason the total came out 0 -
+            // a masked cell next to real, countable enrollment doesn't make the total unknown.
+            const suppressed = csStats.suppressed && csStats.total === 0;
 
-            return { 
-                name, 
+            return {
+                name,
                 ncesID,
                 total: totalStudents,
-                csEnrollment: csStats.total, 
+                csEnrollment: csStats.total,
                 csGirls: csStats.girls,
                 csBoys: csStats.boys,
-                pct: totalStudents > 0 ? csStats.total / totalStudents : 0 
+                suppressed,
+                pct: totalStudents > 0 ? csStats.total / totalStudents : 0
             };
         });
 
@@ -123,13 +140,14 @@ const SchoolTable: FC<{ categoryColor: string }> = observer(({ categoryColor }) 
                             </TextCell>
 
                             <TextCell style={{ fontWeight: 'bold', color: categoryColor }}>
-                                <DataValue val={s.csEnrollment} pct={s.pct} showPercentage={store.showPercentage} />
+                                <DataValue val={s.csEnrollment} pct={s.pct} showPercentage={store.showPercentage} suppressed={s.suppressed} />
                             </TextCell>
-                            
+
                             <TextCell style={{ fontSize: '0.8rem', color: '#555', lineHeight: '1.4' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span><span style={{ fontWeight: 'bold' }}>Male:</span> <span style={{ color: '#555' }}>{s.csBoys === 0 ? 'n<10' : s.csBoys}</span></span>
-                                    <span><span style={{ fontWeight: 'bold' }}>Female:</span> <span style={{ color: '#555' }}>{s.csGirls === 0 ? 'n<10' : s.csGirls}</span></span>
+                                    {/* A confirmed (non-suppressed) 0 overall means both genders are really 0 too - no ambiguity to hide behind "n<10". */}
+                                    <span><span style={{ fontWeight: 'bold' }}>Male:</span> <span style={{ color: '#555' }}>{!s.suppressed && s.csEnrollment === 0 ? 0 : (s.csBoys === 0 ? 'n<10' : s.csBoys)}</span></span>
+                                    <span><span style={{ fontWeight: 'bold' }}>Female:</span> <span style={{ color: '#555' }}>{!s.suppressed && s.csEnrollment === 0 ? 0 : (s.csGirls === 0 ? 'n<10' : s.csGirls)}</span></span>
                                 </div>
                             </TextCell>
                         </TableRow>

@@ -77,7 +77,7 @@ function accumulate(agg: DistrictAgg, type: string, total: number, basic: number
 
 const DistrictClassTable: FC<{ categoryColor: string }> = observer(({ categoryColor }) => {
 	const store = useContext(Store);
-	const { totalLeaCSData } = useContext(DataContext);
+	const { totalLeaCSData, schoolPopData } = useContext(DataContext);
 	const year = store.schoolYearShowing;
 	const selectedCat = store.courseCategory;
 	const selectedLevel = store.courseLevel;
@@ -147,8 +147,23 @@ const DistrictClassTable: FC<{ categoryColor: string }> = observer(({ categoryCo
 		districtsById.set("charter", { ...charterAgg, childIds: Array.from(charterIds) });
 		districtsById.set("deafBlind", { ...deafBlindAgg, childIds: Array.from(deafBlindIds) });
 
+		// "Total LEA CS Data" only has rows for an LEA that offers at least one CS
+		// course, so a district with zero (e.g. Daggett, Wayne, North Summit in
+		// 2024-25) is otherwise missing from this table entirely. Add it back in
+		// from "School Pop. Data" - which lists every district regardless of CS -
+		// with all of its course counts at a confirmed 0.
+		(schoolPopData[year] || [])
+			.filter((row: any) => String(row[6] || '').toLowerCase().includes('district'))
+			.forEach((row: any) => {
+				const name = String(row[6]).trim();
+				const id = String(row[8]).trim();
+				if (!districtsById.has(id)) {
+					districtsById.set(id, emptyDistrictAgg(name, id));
+				}
+			});
+
 		return Array.from(districtsById.values());
-	}, [totalLeaCSData, year, selectedCat, selectedLevel]);
+	}, [totalLeaCSData, schoolPopData, year, selectedCat, selectedLevel]);
 
 	const allSelectableIds = useMemo(
 		() => districts.flatMap(d => (d.childIds && d.childIds.length > 0 ? d.childIds : [d.id])),

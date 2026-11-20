@@ -39,8 +39,8 @@ export const SortableHeader: FC<SortProps> = ({ headerName, isSortUp, isSorting,
     </TextCell>
 );
 
-export const DataValue: FC<{ val: number, pct: number, showPercentage: boolean }> = ({ val, pct, showPercentage }) => {
-    if (val === 0) return <span style={{ color: '#ccc' }}>n&lt;10</span>;
+export const DataValue: FC<{ val: number, pct: number, showPercentage: boolean, suppressed?: boolean }> = ({ val, pct, showPercentage, suppressed }) => {
+    if (suppressed ?? val === 0) return <span style={{ color: '#ccc' }}>n&lt;10</span>;
     return (
         <span>
             {showPercentage ? format(".1%")(pct) : format(",")(val)}

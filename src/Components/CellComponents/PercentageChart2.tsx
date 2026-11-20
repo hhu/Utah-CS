@@ -16,9 +16,8 @@ const PercentageChart: FC<Props> = ({ actualVal, percentage, tooltip }: Props) =
 
 const store = useContext(Store);
 
-{/*onClick={() => actualVal === 0 ? null : store.updateShowPercentage()} */} 
     return (
-        <SmallerComponentSVG >
+        <SmallerComponentSVG onClick={() => actualVal === 0 ? null : store.updateShowPercentage()}>
             {/* minimum width would be 2 px to show things. */}
             {computeTextOutcome(actualVal, percentage, store.showPercentage) === '0' ? <></> : <rect x={0} y={0}
                 fill="none"

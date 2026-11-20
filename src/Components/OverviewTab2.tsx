@@ -10,6 +10,7 @@ import { select, pointer } from "d3-selection";
 import { geoMercator, geoPath } from "d3-geo";
 import { json } from "d3-fetch";
 import { linkToGeoJson, normalizeGradeLevelName, CourseCategoryDictionary, CourseCategoryDescriptionDictionary, CourseCategoryShortDictionary } from "../Preset/Constants2";
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 const OverviewGridItem = styled(Grid)({
     padding: '10px',
@@ -25,8 +26,8 @@ const OverviewCard: FC<{ mainText: ReactNode, subText: ReactNode }> = ({ mainTex
         display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center'
     }}>
         
-        {subText !== null && <div style={{ fontSize: '2.8rem', fontWeight: 800 }}>{subText}</div>}
-        <div style={{ fontSize: '0.95rem', color: '#444', marginBottom: '12px', lineHeight: 1.4 }}>{mainText}</div>
+        {subText !== null && <div style={{ fontSize: '3.75rem', fontWeight: 300 }}>{subText}</div>}
+        <div style={{ fontSize: '1rem', fontWeight: 400, color: '#444', marginBottom: '12px', lineHeight: 1.4 }}>{mainText}</div>
 
     </div>
 );
@@ -377,19 +378,43 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>Schools <b>Offering</b> {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}</span>}
-                                subText={<span style={{ color: categoryColor }}>{schoolsOfferingCount}</span>}
+                                mainText={
+                                    <span>
+                                        Schools <b>Offering</b> {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}
+                                        <br /><span style={{ display: 'flex', justifyContent: 'end' }}>
+                                            <button onClick={() => store.updateShowPercentage()} className="bi bi-toggles" style={{ color: categoryColor, fontSize: 'larger', border: 'none', backgroundColor: 'white' }}></button>
+                                        </span>
+                                    </span>
+                                }
+                                subText={
+                                    <span style={{ color: categoryColor }}>
+                                        <span onClick={() => store.updateShowPercentage()} style={{ cursor: 'pointer' }}>
+                                            {store.showPercentage
+                                                ? format(".1%")((schoolPopData[year] || []).length > 0 ? schoolsOfferingCount / (schoolPopData[year] || []).length : 0)
+                                                : format(",")(schoolsOfferingCount)}
+                                        </span>
+                                    </span>
+                                }
                             />
                         </OverviewGridItem>
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>Students <b>Participating</b> in {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}</span>}
+                                mainText={
+                                    <span>
+                                        Students <b>Participating</b> in {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}
+                                        <br /><span style={{ display: 'flex', justifyContent: 'end' }}>
+                                            <button onClick={() => store.updateShowPercentage()} className="bi bi-toggles" style={{ color: categoryColor, fontSize: 'larger', border: 'none', backgroundColor: 'white' }}></button>
+                                        </span>
+                                    </span>
+                                }
                                 subText={
                                     <span style={{ color: categoryColor, fontSize: store.showPercentage ? '3.2rem' : '2.8rem' }}>
-                                        {store.showPercentage
-                                            ? format(".1%")(totalStudentsCount > 0 ? participatingCount / totalStudentsCount : 0)
-                                            : format(",")(participatingCount)}
+                                        <span onClick={() => store.updateShowPercentage()} style={{ cursor: 'pointer' }}>
+                                            {store.showPercentage
+                                                ? format(".1%")(totalStudentsCount > 0 ? participatingCount / totalStudentsCount : 0)
+                                                : format(",")(participatingCount)}
+                                        </span>
                                     </span>
                                 }
                             />

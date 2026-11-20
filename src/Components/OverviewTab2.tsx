@@ -1,6 +1,6 @@
 import Grid from '@mui/material/Unstable_Grid2';
 import { observer } from "mobx-react-lite";
-import { FC, useContext, useMemo, useRef, useEffect, ReactNode } from "react";
+import { FC, useContext, useMemo, useRef, useEffect, useState, ReactNode } from "react";
 import { DataContext } from "../App2";
 import Store from "../Interface/Store2";
 import styled from "@emotion/styled";
@@ -11,6 +11,7 @@ import { geoMercator, geoPath } from "d3-geo";
 import { json } from "d3-fetch";
 import { linkToGeoJson, normalizeGradeLevelName, CourseCategoryDictionary, CourseCategoryDescriptionDictionary, CourseCategoryShortDictionary } from "../Preset/Constants2";
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import CourseInfoModal2 from "./CourseDescriptionComponent/CourseInfoModal2";
 
 const OverviewGridItem = styled(Grid)({
     padding: '10px',
@@ -63,6 +64,8 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
 
     const mapRef = useRef(null);
     const tooltipRef = useRef(null);
+
+    const [showCourseList, setShowCourseList] = useState(false);
 
     const year = store.schoolYearShowing;
 
@@ -369,9 +372,16 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
                             />
                         </OverviewGridItem>
 
-                        <OverviewGridItem xs={6}>
+                        <OverviewGridItem xs={6} onClick={() => setShowCourseList(true)} style={{ cursor: 'pointer' }}>
                             <OverviewCard
-                                mainText={<span>{CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}</span>}
+                                mainText={
+                                    <span>
+                                        {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory} {uniqueCourseCount === 1 ? 'Course' : 'Courses'}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` (${store.courseLevel} only)` : ''}
+                                        <br /><span style={{ display: 'flex', justifyContent: 'end' }}>
+                                            <button onClick={() => setShowCourseList(true)} className="bi bi-info-circle-fill" style={{ color: categoryColor, fontSize: 'larger', border: 'none', backgroundColor: 'white' }}></button>
+                                        </span>
+                                    </span>
+                                }
                                 subText={<span style={{ color: categoryColor }}>{uniqueCourseCount}</span>}
                             />
                         </OverviewGridItem>
@@ -465,6 +475,9 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
                     </div>
                 </Grid>
             </Grid>
+            {showCourseList && (
+                <CourseInfoModal2 categoryColor={categoryColor} onClose={() => setShowCourseList(false)} />
+            )}
         </div>
     );
 };

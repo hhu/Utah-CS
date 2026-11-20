@@ -12,6 +12,7 @@ import DataLoadingModal from './Components/DataLoadingModal';
 import TabsComponent from "./Components/TabsComponent/Tabs2";
 import OverviewTab from "./Components/OverviewTab2";
 import SchoolTable from "./Components/SchoolComponent/SchoolTable2";
+import SchoolClassTable from "./Components/SchoolComponent/SchoolClassTable";
 import DistrictTable from "./Components/DistrictComponent/DistrictTable2";
 import DistrictClassTable from "./Components/DistrictComponent/DistrictClassTable";
 import Footer from "./Components/Footer";
@@ -393,7 +394,7 @@ export const App = () => {
                                         marginBottom: '10px',
                                         paddingLeft: '10px'
                                     }}>
-                                        District List
+                                        District Enrollments
                                     </div>
                                     <DistrictTable categoryColor={categoryColor} />    
                                 </Grid>
@@ -408,7 +409,7 @@ export const App = () => {
                                     }}>
                                         {store.hoveredDistrict
                                             ? `Schools in ${store.hoveredDistrict}`
-                                            : "Schools in Selected District"}
+                                            : "Schools in Selected District(s)"}
                                     </div>
                                     <SchoolTable categoryColor={categoryColor} />
                                 </Grid>
@@ -424,7 +425,7 @@ export const App = () => {
                                         marginBottom: '10px',
                                         paddingLeft: '10px'
                                     }}>
-                                        District Courses
+                                        Computing Courses Offered by Districts
                                     </div>
                                     <DistrictClassTable categoryColor={categoryColor} />
                                 </Grid>
@@ -439,9 +440,9 @@ export const App = () => {
                                     }}>
                                         {store.hoveredDistrict
                                             ? `Schools in ${store.hoveredDistrict}`
-                                            : "Schools in Selected District"}
+                                            : "Schools in Selected District(s)"}
                                     </div>
-                                    <SchoolTable categoryColor={categoryColor} />
+                                    <SchoolClassTable categoryColor={categoryColor} />
                                 </Grid>
                             </Grid>
                         )}

@@ -134,7 +134,13 @@ const DistrictTable: FC<{ categoryColor: string }> = observer(({ categoryColor }
     const sorted = [...districts].sort((a, b) => {
         let aV: any = a.name; let bV: any = b.name;
         if (sortAttr === 'total') { aV = a.total; bV = b.total; }
-        else if (sortAttr === 'enroll') { aV = a.csEnrollment; bV = b.csEnrollment; }
+        else if (sortAttr === 'enroll') {
+            // A suppressed (n<10) count is really 1-9, so it should sort just above a
+            // confirmed 0, not land on it - both are stored as 0 otherwise.
+            aV = a.suppressed ? 0.5 : a.csEnrollment;
+            bV = b.suppressed ? 0.5 : b.csEnrollment;
+        }
+        if (aV === bV) return 0;
         return sortUp ? (aV > bV ? 1 : -1) : (aV < bV ? 1 : -1);
     });
 

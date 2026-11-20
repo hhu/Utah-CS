@@ -96,7 +96,7 @@ const DistrictClassTable: FC<{ categoryColor: string }> = observer(({ categoryCo
 		const districtsById = new Map<string, DistrictAgg>();
 
 		const charterAgg = emptyDistrictAgg("Charter", "charter");
-		const deafBlindAgg = emptyDistrictAgg("DeafBlind", "deafBlind");
+		const deafBlindAgg = emptyDistrictAgg("Utah Schools for the Deaf & Blind", "deafBlind");
 		const charterIds = new Set<string>();
 		const deafBlindIds = new Set<string>();
 
@@ -179,9 +179,15 @@ const DistrictClassTable: FC<{ categoryColor: string }> = observer(({ categoryCo
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [year]);
 
+	const categoryCoursesFor = (d: DistrictAgg) => {
+		const field = categoryFieldForCourseCategory[selectedCat];
+		return field ? (d[field] as CategoryTotals).total : d.totalCS.total;
+	};
+
 	const sorted = [...districts].sort((a, b) => {
-		const aValue = sortAttr === 'name' ? a.name : sortAttr === 'courses' ? a.totalCourses : 0;
-		const bValue = sortAttr === 'name' ? b.name : sortAttr === 'courses' ? b.totalCourses : 0;
+		const aValue = sortAttr === 'name' ? a.name : sortAttr === 'courses' ? a.totalCourses : categoryCoursesFor(a);
+		const bValue = sortAttr === 'name' ? b.name : sortAttr === 'courses' ? b.totalCourses : categoryCoursesFor(b);
+		if (aValue === bValue) return 0;
 		return sortUp ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
 	});
 
@@ -240,7 +246,7 @@ const DistrictClassTable: FC<{ categoryColor: string }> = observer(({ categoryCo
 							onClick={() => { setSortAttr('name'); setSortUp(!sortUp); }}
 						/>
 						<SortableHeader
-							headerName="Total Number of Courses"
+							headerName="Total Computing Courses"
 							isSorting={sortAttr === 'courses'}
 							isSortUp={sortUp}
 							onClick={() => { setSortAttr('courses'); setSortUp(!sortUp); }}

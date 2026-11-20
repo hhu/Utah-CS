@@ -9,7 +9,7 @@ import { interpolateBlues } from "d3-scale-chromatic";
 import { select, pointer } from "d3-selection";
 import { geoMercator, geoPath } from "d3-geo";
 import { json } from "d3-fetch";
-import { linkToGeoJson, normalizeGradeLevelName, CourseCategoryDictionary, CourseCategoryDescriptionDictionary } from "../Preset/Constants2";
+import { linkToGeoJson, normalizeGradeLevelName, CourseCategoryDictionary, CourseCategoryDescriptionDictionary, CourseCategoryShortDictionary } from "../Preset/Constants2";
 
 const OverviewGridItem = styled(Grid)({
     padding: '10px',
@@ -338,8 +338,10 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
 
     const renderDescription = (): JSX.Element => {
         const cat = store.courseCategory;
-        const label = CourseCategoryDictionary[cat] ?? cat;
-        const body = CourseCategoryDescriptionDictionary[cat] ?? `This view displays data specifically for ${label} courses.`;
+        const categoryLabel = CourseCategoryDictionary[cat] ?? cat;
+        const levelLabel = store.courseLevel === 'All' ? 'All Levels' : store.courseLevel;
+        const label = `${categoryLabel} (${levelLabel})`;
+        const body = CourseCategoryDescriptionDictionary[cat] ?? `This view displays data specifically for ${categoryLabel} courses.`;
 
         return (
             <>
@@ -367,21 +369,21 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>{store.getCourseCategoryAndLevelString()} Courses</span>}
+                                mainText={<span>{CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` ${store.courseLevel}` : ''} Courses</span>}
                                 subText={<span style={{ color: categoryColor }}>{uniqueCourseCount}</span>}
                             />
                         </OverviewGridItem>
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>Schools <b>Offering</b> {store.getCourseCategoryAndLevelString()} Courses</span>}
+                                mainText={<span>Schools <b>Offering</b> {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` ${store.courseLevel}` : ''} Courses</span>}
                                 subText={<span style={{ color: categoryColor }}>{schoolsOfferingCount}</span>}
                             />
                         </OverviewGridItem>
 
                         <OverviewGridItem xs={6}>
                             <OverviewCard
-                                mainText={<span>Students <b>Participating</b> in {store.getCourseCategoryAndLevelString()} Courses</span>}
+                                mainText={<span>Students <b>Participating</b> in {CourseCategoryShortDictionary[store.courseCategory] ?? store.courseCategory}{(store.courseLevel === 'Basic' || store.courseLevel === 'Advanced') ? ` ${store.courseLevel}` : ''} Courses</span>}
                                 subText={
                                     <span style={{ color: categoryColor, fontSize: store.showPercentage ? '3.2rem' : '2.8rem' }}>
                                         {store.showPercentage

@@ -35,6 +35,19 @@ interface Props {
     categoryColor: string;
 }
 
+// Download the (7 MB) district boundaries file once and share it between redraws.
+// Like a static cached field in Java: every caller gets the same Promise.
+let geoJsonPromise: Promise<any> | null = null;
+const loadGeoJson = () => {
+    if (!geoJsonPromise) {
+        geoJsonPromise = json(linkToGeoJson).catch(err => {
+            geoJsonPromise = null; // allow a retry on the next draw
+            throw err;
+        });
+    }
+    return geoJsonPromise;
+};
+
 const OverviewTab: FC<Props> = ({ categoryColor }) => {
     const store = useContext(Store);
     const {
@@ -184,7 +197,15 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
         const svgNode: any = svgSelection.node();
         const container = svgNode.parentNode;
 
+        // Set by the cleanup below when districtStats changes (or the tab unmounts).
+        // An older drawMap that is still waiting on the GeoJSON must not paint over
+        // a newer one: it holds stale, possibly empty, districtStats.
+        let cancelled = false;
+
         async function drawMap(svgWidth: number, svgHeight: number) {
+            const file = await loadGeoJson();
+            if (cancelled) return;
+
             svgSelection
                 .attr('width', svgWidth)
                 .attr('height', svgHeight)
@@ -192,7 +213,6 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
 
             const tooltip = select(tooltipRef.current);
 
-            const file = await json(linkToGeoJson);
             const projection = geoMercator()
                 .fitExtent([[0, 0], [svgWidth, svgHeight]], (file as any));
 
@@ -258,6 +278,7 @@ const OverviewTab: FC<Props> = ({ categoryColor }) => {
         resizeObserver.observe(container);
 
         return () => {
+            cancelled = true;
             resizeObserver.disconnect();
         };
     }, [districtStats]);

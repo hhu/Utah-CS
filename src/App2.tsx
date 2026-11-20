@@ -114,198 +114,127 @@ export const App = () => {
     const [leaPopData, setLeaPopData] = useState<LeaPopStore>(initStore());
     const [totalLeaCSData, setTotalLeaCSData] = useState<TotalLeaCSStore>(initStore());
 
+    // Loading progress, shown in the DataLoadingModal popup.
+    const [sheetsLoaded, setSheetsLoaded] = useState(0);
+    const [failedSheets, setFailedSheets] = useState<string[]>([]);
+
     useEffect(() => {
+        // Set by the cleanup below if this component unmounts mid-load,
+        // so we never call setState on a component that is gone.
+        let cancelled = false;
 
-        // course data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'Course List' }))
-            .then((rows: any[]) => {
+        // Groups the rows of a sheet by school year, skipping the header row.
+        // yearColumn: which column holds the year. headerText: that column's heading.
+        const groupByYear = (rows: any[], yearColumn = 0, headerText = 'School Year') => {
+            const dataByYear = initStore();
+            rows.forEach((row) => {
+                const year = String(row[yearColumn]);
+                if (year === headerText) return;
+                if (dataByYear[year]) dataByYear[year].push(row);
+            });
+            return dataByYear;
+        };
 
-                const store: CourseDataStore = {
-                    byCode: {},
-                    byType: {},
-                    byCategory: {},
-                    byLevel: {}
-                };
+        const buildCourseStore = (rows: any[]): CourseDataStore => {
+            const courses: CourseDataStore = {
+                byCode: {},
+                byType: {},
+                byCategory: {},
+                byLevel: {}
+            };
 
-                const addToGroup = (dict: Record<string, string[]>, key: string, code: string) => {
-                    const safeKey = key ? key.trim() : 'Unknown';
-                    if (!dict[safeKey]) dict[safeKey] = [];
-                    dict[safeKey].push(code);
-                };
+            const addToGroup = (dict: Record<string, string[]>, key: string, code: string) => {
+                const safeKey = key ? key.trim() : 'Unknown';
+                if (!dict[safeKey]) dict[safeKey] = [];
+                dict[safeKey].push(code);
+            };
 
-                rows.forEach((row) => {
-                    const rawCode = row[5];
+            rows.forEach((row) => {
+                const rawCode = row[5];
 
-                    if (!rawCode || String(rawCode).trim() === 'Course Code') return;
+                if (!rawCode || String(rawCode).trim() === 'Course Code') return;
 
-                    const code = String(rawCode).trim();
-                    const name = String(row[1] || '').trim();
-                    const type = String(row[2] || '').trim();
-                    const category = String(row[3] || '').trim();
-                    const level = String(row[4] || '').trim();
+                const code = String(rawCode).trim();
+                const name = String(row[1] || '').trim();
+                const type = String(row[2] || '').trim();
+                const category = String(row[3] || '').trim();
+                const level = String(row[4] || '').trim();
 
-                    store.byCode[code] = [name, type, category, level];
+                courses.byCode[code] = [name, type, category, level];
 
-                    addToGroup(store.byType, type, code);
-                    addToGroup(store.byCategory, category, code);
-                    addToGroup(store.byLevel, level, code);
-                });
+                addToGroup(courses.byType, type, code);
+                addToGroup(courses.byCategory, category, code);
+                addToGroup(courses.byLevel, level, code);
+            });
 
-                setCourseData(store);
-            })
-            .catch(err => console.error("Error loading Excel:", err));
+            return courses;
+        };
 
-        // school pop data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'School Pop. Data' }))
-            .then((rows: any[]) => {
+        // One entry per sheet: [sheet name in the Excel file, what to do with its rows].
+        // Like a list of (String, Consumer<List<Row>>) pairs in Java.
+        const sheets: [string, (rows: any[]) => void][] = [
+            ['Course List', rows => setCourseData(buildCourseStore(rows))],
+            ['State Pop. Data', rows => setStatePopData(groupByYear(rows))],
+            ['State CS Data', rows => setStateCSData(groupByYear(rows))],
+            ['School Pop. Data', rows => setSchoolPopData(groupByYear(rows))],
+            ['School CS Data', rows => setSchoolCSData(groupByYear(rows))],
+            ['LEA Pop. Data', rows => setLeaPopData(groupByYear(rows))],
+            ['Total State CS Data', rows => setTotalStateCSData(groupByYear(rows))],
+            ['Total School CS Data', rows => setTotalSchoolCSData(groupByYear(rows))],
+            ['Total LEA CS Data', rows => setTotalLeaCSData(groupByYear(rows, 1, 'Year'))],
+        ];
 
-                const dataByYear: SchoolPopStore = {};
-                PossibleSchoolYears.forEach(year => dataByYear[year] = []);
+        const loadAllSheets = async () => {
+            // 1. Download the Excel file once.
+            let fileContents: ArrayBuffer;
+            try {
+                const response = await fetch(linkToData);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} ${response.statusText} for ${linkToData}`);
+                }
+                fileContents = await response.arrayBuffer();
+            } catch (err) {
+                console.error('Error downloading the data file:', err);
+                if (!cancelled) setFailedSheets(sheets.map(([name]) => name));
+                return;
+            }
 
-                rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
+            // 2. Parse the sheets one at a time from that single download.
+            for (const [sheetName, useRows] of sheets) {
+                if (cancelled) return;
+                try {
+                    const rows = await readXlsxFile(fileContents, { sheet: sheetName });
+                    if (cancelled) return;
+                    useRows(rows);
+                } catch (err) {
+                    console.error(`Error loading sheet "${sheetName}":`, err);
+                    if (!cancelled) setFailedSheets(prev => [...prev, sheetName]);
+                }
+                if (cancelled) return;
+                setSheetsLoaded(n => n + 1);
 
-                    if (dataByYear[year]) {
-                        dataByYear[year].push(row);
-                    }
-                });
+                // Parsing is synchronous, so without this pause the browser would not
+                // redraw until every sheet was done. Yielding lets React render (and the
+                // numbers fill in) after each sheet, like the legacy dashboard.
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        };
 
-                setSchoolPopData(dataByYear);
-            })
-            .catch(err => console.error("Error loading School Pop:", err));
+        loadAllSheets();
 
-        // state pop data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'State Pop. Data' }))
-            .then((rows: any[]) => {
-                const dataByYear: StatePopStore = {};
-                PossibleSchoolYears.forEach(year => dataByYear[year] = []);
-
-                rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
-
-                    if (dataByYear[year]) {
-                        dataByYear[year].push(row);
-                    }
-                });
-                setStatePopData(dataByYear);
-            })
-            .catch(err => console.error("Error loading State Pop:", err));
-
-        // state cs data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'State CS Data' }))
-            .then((rows: any[]) => {
-                const dataByYear = initStore();
-                rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
-
-                    if (dataByYear[year]) {
-                        dataByYear[year].push(row);
-                    }
-                });
-                setStateCSData(dataByYear);
-            })
-            .catch(err => console.error("Error loading State CS Data:", err));
-
-        // school cs data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'School CS Data' }))
-            .then((rows: any[]) => {
-                const dataByYear = initStore();
-                rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
-
-                    if (dataByYear[year]) {
-                        dataByYear[year].push(row);
-                    }
-                });
-                setSchoolCSData(dataByYear);
-            })
-            .catch(err => console.error("Error loading School CS Data:", err));
-
-        // total school cs data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'Total School CS Data' }))
-            .then((rows: any[]) => {
-                const dataByYear = initStore();
-                rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
-                    if (dataByYear[year]) dataByYear[year].push(row);
-                });
-                setTotalSchoolCSData(dataByYear);
-            })
-            .catch(err => console.error("Error loading Total School CS Data:", err));
-
-        // total state cs data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'Total State CS Data' }))
-            .then((rows: any[]) => {
-                const dataByYear = initStore();
-                rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
-                    if (dataByYear[year]) dataByYear[year].push(row);
-                });
-                setTotalStateCSData(dataByYear);
-            })
-            .catch(err => console.error("Error loading Total State CS Data:", err));
-
-        // lea pop data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'LEA Pop. Data' }))
-            .then((rows: any[]) => {
-                const dataByYear = initStore();
-                rows.forEach((row) => {
-                    const year = String(row[0]);
-                    if (year === 'School Year') return;
-                    if (dataByYear[year]) dataByYear[year].push(row);
-                });
-                setLeaPopData(dataByYear);
-            })
-            .catch(err => console.error("Error loading LEA Pop Data:", err));
-
-        // total lea cs data
-        fetch(linkToData)
-            .then(response => response.blob())
-            .then(blob => readXlsxFile(blob, { sheet: 'Total LEA CS Data' }))
-            .then((rows: any[]) => {
-                const dataByYear = initStore();
-                rows.forEach((row) => {
-                    const year = String(row[1]);
-                    if (year === 'Year') return;
-                    if (dataByYear[year]) dataByYear[year].push(row);
-                });
-                setTotalLeaCSData(dataByYear);
-            })
-            .catch(err => console.error("Error loading Total LEA CS Data:", err));
-
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const totalSheets = 9; // must match the number of entries in `sheets` above
 
     const [tabVal, setTabVal] = useState(0);
 
     const tabChange = (event: ChangeEvent<{}>, newValue: number) => {
         setTabVal(newValue);
     };
-
-    console.log(statePopData)
-
-    if (!courseData) return <DataLoadingModal />;
 
     return (
         <DataContext.Provider
@@ -461,7 +390,12 @@ export const App = () => {
                 </Box>
                 <Footer />
             </div>
-
+            <DataLoadingModal
+                open={sheetsLoaded < totalSheets || failedSheets.length > 0}
+                loaded={sheetsLoaded}
+                total={totalSheets}
+                failedSheets={failedSheets}
+            />
         </DataContext.Provider>
     );
 
